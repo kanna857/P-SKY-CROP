@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { FieldMap } from '@/components/analyze/FieldMap';
 import { DemoFieldsSelector } from '@/components/analyze/DemoFieldsSelector';
 import { NDVIOverlay } from '@/components/analyze/NDVIOverlay';
 import { SavedFieldsSidebar } from '@/components/analyze/SavedFieldsSidebar';
-import { AnalysisDashboard } from '@/components/analyze/AnalysisDashboard';
-import { AlertsConfig } from '@/components/analyze/AlertsConfig';
-import { WeatherWidget } from '@/components/analyze/WeatherWidget';
-import { AIRecommendations } from '@/components/analyze/AIRecommendations';
 import { AreaRangeSelector } from '@/components/analyze/AreaRangeSelector';
+
+// Heavy components — loaded only when AnalyzePage is visited
+const FieldMap = lazy(() => import('@/components/analyze/FieldMap').then(m => ({ default: m.FieldMap })));
+const AnalysisDashboard = lazy(() => import('@/components/analyze/AnalysisDashboard').then(m => ({ default: m.AnalysisDashboard })));
+const AlertsConfig = lazy(() => import('@/components/analyze/AlertsConfig').then(m => ({ default: m.AlertsConfig })));
+const WeatherWidget = lazy(() => import('@/components/analyze/WeatherWidget').then(m => ({ default: m.WeatherWidget })));
+const AIRecommendations = lazy(() => import('@/components/analyze/AIRecommendations').then(m => ({ default: m.AIRecommendations })));
 
 import { DemoField, DEMO_FIELDS, generateNDVIData } from '@/lib/types';
 import { useSavedFields } from '@/hooks/useSavedFields';
@@ -17,6 +19,12 @@ import { Button } from '@/components/ui/button';
 import { Scan, Save, RotateCcw, Satellite, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+
+const ComponentLoader = () => (
+  <div className="flex items-center justify-center h-32 text-muted-foreground text-sm animate-pulse">
+    Loading...
+  </div>
+);
 
 const AnalyzePage = () => {
   const [searchParams] = useSearchParams();
@@ -287,17 +295,19 @@ const AnalyzePage = () => {
           <div className="lg:col-span-6 space-y-6">
             {/* Map */}
             <div className="h-[400px]">
-              <FieldMap
-                selectedField={selectedField}
-                onFieldSelect={(field) => {
-                  setSelectedField(field);
-                  setAnalysisComplete(false);
-                }}
-                ndviTileUrl={realNdviData?.ndviTileUrl}
-                trueColorUrl={realNdviData?.trueColorUrl}
-                affectedArea={areaRange[0]}
-                onPolygonDrawn={handlePolygonDrawn}
-              />
+              <Suspense fallback={<ComponentLoader />}>
+                <FieldMap
+                  selectedField={selectedField}
+                  onFieldSelect={(field) => {
+                    setSelectedField(field);
+                    setAnalysisComplete(false);
+                  }}
+                  ndviTileUrl={realNdviData?.ndviTileUrl}
+                  trueColorUrl={realNdviData?.trueColorUrl}
+                  affectedArea={areaRange[0]}
+                  onPolygonDrawn={handlePolygonDrawn}
+                />
+              </Suspense>
             </div>
 
             {/* Action Buttons */}
@@ -529,7 +539,9 @@ const AnalyzePage = () => {
                     </span>
                   </div>
                 )}
-                <AnalysisDashboard field={selectedField} data={ndviData} />
+                <Suspense fallback={<ComponentLoader />}>
+                  <AnalysisDashboard field={selectedField} data={ndviData} />
+                </Suspense>
               </>
             )}
           </div>
@@ -541,9 +553,15 @@ const AnalyzePage = () => {
             )}
 
             <AreaRangeSelector value={areaRange} onChange={setAreaRange} />
-            <WeatherWidget field={selectedField} />
-            <AIRecommendations field={selectedField} />
-            <AlertsConfig selectedField={selectedField} currentNdvi={ndviData?.average} />
+            <Suspense fallback={<ComponentLoader />}>
+              <WeatherWidget field={selectedField} />
+            </Suspense>
+            <Suspense fallback={<ComponentLoader />}>
+              <AIRecommendations field={selectedField} />
+            </Suspense>
+            <Suspense fallback={<ComponentLoader />}>
+              <AlertsConfig selectedField={selectedField} currentNdvi={ndviData?.average} />
+            </Suspense>
           </div>
         </div>
       </div>
